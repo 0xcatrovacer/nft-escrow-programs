@@ -222,4 +222,48 @@ describe("escrow-contract", () => {
             )
         );
     });
+
+    it("Can exchange escrow state", async () => {
+        await program.methods
+            .exchange()
+            .accounts({
+                escrowAccount: escrowAccount.publicKey,
+                vaultAccount: vault_account_pda,
+                vaultAuthority: vault_authority_pda,
+                initializer: initializerMainAccount.publicKey,
+                taker: takerMainAccount.publicKey,
+                initializerDepositTokenAccount: initializerNftAccount,
+                initializerReceiveTokenAccount: initializerTokenAccount,
+                takerDepositTokenAccount: takerTokenAccount,
+                takerReceiveTokenAccount: takerNftAccount,
+            })
+            .signers([takerMainAccount])
+            .rpc();
+
+        let _initializerNftAccount = await getAccount(
+            provider.connection,
+            initializerNftAccount
+        );
+        let _initializerTokenAccount = await getAccount(
+            provider.connection,
+            initializerTokenAccount
+        );
+
+        let _takerNftAccount = await getAccount(
+            provider.connection,
+            takerNftAccount
+        );
+        let _takerTokenAccount = await getAccount(
+            provider.connection,
+            takerTokenAccount
+        );
+
+        assert.ok(_takerNftAccount.amount.toString() == "1");
+        assert.ok(_takerTokenAccount.amount.toString() == "0");
+        assert.ok(_initializerNftAccount.amount.toString() == "0");
+        assert.ok(
+            _initializerTokenAccount.amount.toString() ==
+                receiveAmount.toString()
+        );
+    });
 });
