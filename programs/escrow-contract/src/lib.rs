@@ -11,7 +11,7 @@ pub mod escrow_contract {
 
     const ESCROW_PDA_SEEDS: &[u8] = b"escrow";
 
-    pub fn initialize(ctx: Context<InitializeEscrow>, receive_amount: u64) -> Result<()> {
+    pub fn initialize_escrow(ctx: Context<InitializeEscrow>, receive_amount: u64) -> Result<()> {
         let escrow_account = &mut ctx.accounts.escrow_account;
         let initializer = &mut ctx.accounts.initializer;
         let initializer_deposit = &mut ctx.accounts.initializer_deposit_token_account;
