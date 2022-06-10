@@ -63,6 +63,35 @@ pub mod escrow_contract {
 
         Ok(())
     }
+
+    pub fn exchange(ctx: Context<Exchange>) -> Result<()> {
+        let (_vault_authority, _vault_authority_bump) =
+            Pubkey::find_program_address(&[&ESCROW_PDA_SEEDS], ctx.program_id);
+
+        let authority_seeds = &[&ESCROW_PDA_SEEDS[..], &[_vault_authority_bump]];
+
+        token::transfer(
+            ctx.accounts
+                .transfer_nft_to_taker_context()
+                .with_signer(&[&authority_seeds[..]]),
+            1,
+        )?;
+
+        token::transfer(
+            ctx.accounts
+                .transfer_to_initializer_context()
+                .with_signer(&[&authority_seeds[..]]),
+            ctx.accounts.escrow_account.initializer_receive_amount,
+        )?;
+
+        token::close_account(
+            ctx.accounts
+                .close_account_context()
+                .with_signer(&[&authority_seeds[..]]),
+        )?;
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
