@@ -41,6 +41,28 @@ pub mod escrow_contract {
 
         Ok(())
     }
+
+    pub fn cancel(ctx: Context<Cancel>) -> Result<()> {
+        let (_vault_authority, _vault_authority_bump) =
+            Pubkey::find_program_address(&[ESCROW_PDA_SEEDS], ctx.program_id);
+
+        let authority_seeds = &[&ESCROW_PDA_SEEDS[..], &[_vault_authority_bump]];
+
+        token::transfer(
+            ctx.accounts
+                .transfer_nft_back_context()
+                .with_signer(&[&authority_seeds[..]]),
+            1,
+        )?;
+
+        token::close_account(
+            ctx.accounts
+                .close_account_context()
+                .with_signer(&[&authority_seeds[..]]),
+        )?;
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
