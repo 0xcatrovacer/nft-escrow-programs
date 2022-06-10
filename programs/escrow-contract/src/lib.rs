@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, TokenAccount};
+use anchor_spl::token::{Mint, TokenAccount, SetAuthority};
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
@@ -43,6 +43,21 @@ pub struct InitializeEscrow<'info> {
     pub system_program: AccountInfo<'info>,
 
     pub token_program: AccountInfo<'info>,
+}
+
+impl<'info> From<&mut InitializeEscrow<'info>> 
+    for CpiContext<'_, '_, '_, 'info, SetAuthority<'info>> 
+{
+    fn from(accounts: &mut InitializeEscrow<'info>) -> Self {
+        let cpi_accounts = SetAuthority {
+            account_or_mint: accounts.initializer_deposit_token_account.to_account_info().clone(),
+            current_authority: accounts.initializer.to_account_info().clone(),
+        };
+
+        let cpi_program = accounts.token_program.to_account_info();
+
+        CpiContext::new(cpi_program, cpi_accounts)
+    }
 }
 
 #[account]
