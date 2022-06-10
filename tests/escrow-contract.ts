@@ -7,12 +7,14 @@ import {
     mintTo,
     getAccount,
     TOKEN_PROGRAM_ID,
+    NATIVE_MINT,
 } from "@solana/spl-token";
 import { EscrowContract } from "../target/types/escrow_contract";
 import NodeWallet from "@project-serum/anchor/dist/cjs/nodewallet";
+import { assert } from "chai";
 
 describe("escrow-contract", () => {
-    const provider = anchor.AnchorProvider.local();
+    const provider = anchor.AnchorProvider.env();
 
     anchor.setProvider(provider);
 
@@ -39,13 +41,12 @@ describe("escrow-contract", () => {
     const receiveAmount = new anchor.BN(100 * usdcDecimals);
 
     it("Initializes program state", async () => {
-        await provider.connection.confirmTransaction(
-            await provider.connection.requestAirdrop(
-                payer.publicKey,
-                1000000000
-            ),
-            "processed"
+        const transferTx = await provider.connection.requestAirdrop(
+            payer.publicKey,
+            500000000
         );
+
+        await provider.connection.confirmTransaction(transferTx);
 
         const tx = new Transaction();
         tx.add(
@@ -128,7 +129,7 @@ describe("escrow-contract", () => {
             payer,
             nftMint,
             initializerNftAccount,
-            mintAuthority.publicKey,
+            mintAuthority,
             1
         );
 
@@ -150,7 +151,9 @@ describe("escrow-contract", () => {
             takerTokenAccount
         );
 
-        console.log(_initializerNftAccount);
-        console.log(_takerNftAccount);
+        assert.ok(_initializerNftAccount.amount.toString() == "1");
+        assert.ok(
+            _takerNftAccount.amount.toString() == receiveAmount.toString()
+        );
     });
 });
