@@ -114,6 +114,33 @@ impl<'info> InitializeEscrow<'info> {
     }
 }
 
+#[derive(Accounts)]
+pub struct Cancel<'info> {
+    #[account(mut)]
+    pub vault_account: Account<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        constraint = escrow_account.initializer_key == *initializer.key,
+        constraint = escrow_account.initializer_deposit_token_account == *initializer_deposit_token_account.to_account_info().key,
+        close = initializer
+    )]
+    pub escrow_account: Box<Account<'info, EscrowAccount>>,
+
+    #[account(mut)]
+    pub initializer_deposit_token_account: Account<'info, TokenAccount>,
+
+    /// CHECK: This is not dangerous
+    pub vault_authority: AccountInfo<'info>,
+
+    /// CHECK: This is not dangerous
+    #[account(mut, signer)]
+    pub initializer: AccountInfo<'info>,
+
+    /// CHECK: This is not dangerous
+    pub token_program: AccountInfo<'info>,
+}
+
 #[account]
 pub struct EscrowAccount {
     pub initializer_key: Pubkey,
