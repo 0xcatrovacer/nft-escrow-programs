@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::spl_token::instruction::AuthorityType;
-use anchor_spl::token::{self, Mint, SetAuthority, TokenAccount, Transfer};
+use anchor_spl::token::{self, CloseAccount, Mint, SetAuthority, TokenAccount, Transfer};
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
@@ -116,7 +116,10 @@ impl<'info> InitializeEscrow<'info> {
 
 #[derive(Accounts)]
 pub struct Cancel<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = vault_account.owner == *vault_authority.key,
+    )]
     pub vault_account: Account<'info, TokenAccount>,
 
     #[account(
@@ -139,6 +142,31 @@ pub struct Cancel<'info> {
 
     /// CHECK: This is not dangerous
     pub token_program: AccountInfo<'info>,
+}
+
+impl<'info> Cancel<'info> {
+    fn transfer_nft_back_context(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+        let cpi_accounts = Transfer {
+            from: self.vault_account.to_account_info().clone(),
+            to: self
+                .initializer_deposit_token_account
+                .to_account_info()
+                .clone(),
+            authority: self.vault_authority.clone(),
+        };
+
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
+
+    fn close_account_context(&self) -> CpiContext<'_, '_, '_, 'info, CloseAccount<'info>> {
+        let cpi_accounts = CloseAccount {
+            account: self.vault_account.to_account_info().clone(),
+            destination: self.initializer.clone(),
+            authority: self.vault_authority.clone(),
+        };
+
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
 }
 
 #[account]
