@@ -92,7 +92,8 @@ pub struct InitializeEscrow<'info> {
 
     #[account(
         mut,
-        constraint = initializer_deposit_token_account.mint == initializer_nft_mint.key()
+        constraint = initializer_deposit_token_account.mint == initializer_nft_mint.key(),
+        constraint = initializer_deposit_token_account.owner == *initializer.key,
     )]
     pub initializer_deposit_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -100,7 +101,8 @@ pub struct InitializeEscrow<'info> {
     pub initializer_receive_mint: Account<'info, Mint>,
 
     #[account(
-        constraint = initializer_receive_token_account.mint == initializer_receive_mint.key()
+        constraint = initializer_receive_token_account.mint == initializer_receive_mint.key(),
+        constraint = initializer_receive_token_account.owner == *initializer.key,
     )]
     pub initializer_receive_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -152,7 +154,10 @@ pub struct Cancel<'info> {
     )]
     pub escrow_account: Box<Account<'info, EscrowAccount>>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = initializer_deposit_token_account.owner == *initializer.key,
+    )]
     pub initializer_deposit_token_account: Account<'info, TokenAccount>,
 
     /// CHECK: This is not dangerous
@@ -189,6 +194,59 @@ impl<'info> Cancel<'info> {
 
         CpiContext::new(self.token_program.clone(), cpi_accounts)
     }
+}
+
+#[derive(Accounts)]
+pub struct Exchange<'info> {
+    #[account(
+        mut,
+        constraint = escrow_account.initializer_receive_amount <= taker_deposit_token_account.amount,
+        constraint = escrow_account.initializer_deposit_token_account == *initializer_deposit_token_account.to_account_info().key,
+        constraint = escrow_account.initializer_receive_token_account == *initializer_receive_token_account.to_account_info().key,
+        constraint = escrow_account.initializer_key == *initializer.key,
+    )]
+    pub escrow_account: Box<Account<'info, EscrowAccount>>,
+
+    #[account(mut)]
+    pub vault_account: Box<Account<'info, TokenAccount>>,
+
+    /// CHECK: This is not dangerous
+    pub vault_authority: AccountInfo<'info>,
+
+    /// CHECK: This is not dangerous
+    #[account(mut)]
+    pub initializer: AccountInfo<'info>,
+
+    /// CHECK: This is not dangerous
+    #[account(mut, signer)]
+    pub taker: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        constraint = initializer_deposit_token_account.owner == *initializer.key,
+    )]
+    pub initializer_deposit_token_account: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        constraint = initializer_receive_token_account.owner == *initializer.key,
+    )]
+    pub initializer_receive_token_account: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        constraint = taker_deposit_token_account.owner == *taker.key
+    )]
+    pub taker_deposit_token_account: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        constraint = taker_receive_token_account.owner == *taker.key
+    )]
+    pub taker_receive_token_account: Box<Account<'info, TokenAccount>>,
+
+    /// CHECK: This is not dangerous
+    pub token_program: AccountInfo<'info>,
 }
 
 #[account]
