@@ -1,11 +1,11 @@
 use anchor_lang::prelude::*;
+use anchor_spl::token::spl_token::instruction::AuthorityType;
 use anchor_spl::token::{self, Mint, SetAuthority, TokenAccount, Transfer};
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
 pub mod escrow_contract {
-    use anchor_spl::token::spl_token::instruction::AuthorityType;
 
     use super::*;
 
@@ -47,13 +47,16 @@ pub mod escrow_contract {
 pub struct InitializeEscrow<'info> {
     #[account(
         init,
-        seeds = [b"token".as_ref()],
+        seeds = [
+            initializer.to_account_info().key.as_ref(),
+            initializer_nft_mint.to_account_info().key.as_ref(),
+            ],
         bump,
         payer = initializer,
         token::mint = initializer_nft_mint,
         token::authority = initializer,
     )]
-    pub vault_account: Account<'info, TokenAccount>,
+    pub vault_account: Box<Account<'info, TokenAccount>>,
 
     #[account(zero)]
     pub escrow_account: Account<'info, EscrowAccount>,
@@ -69,14 +72,15 @@ pub struct InitializeEscrow<'info> {
         mut,
         constraint = initializer_deposit_token_account.mint == initializer_nft_mint.key()
     )]
-    pub initializer_deposit_token_account: Account<'info, TokenAccount>,
+    pub initializer_deposit_token_account: Box<Account<'info, TokenAccount>>,
 
+    #[account(mut)]
     pub initializer_receive_mint: Account<'info, Mint>,
 
     #[account(
         constraint = initializer_receive_token_account.mint == initializer_receive_mint.key()
     )]
-    pub initializer_receive_token_account: Account<'info, TokenAccount>,
+    pub initializer_receive_token_account: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: This is not dangerous
     pub token_program: AccountInfo<'info>,
@@ -103,7 +107,7 @@ impl<'info> InitializeEscrow<'info> {
     fn set_authority_context(&self) -> CpiContext<'_, '_, '_, 'info, SetAuthority<'info>> {
         let cpi_accounts = SetAuthority {
             account_or_mint: self.vault_account.to_account_info().clone(),
-            current_authority: self.token_program.clone(),
+            current_authority: self.initializer.clone(),
         };
 
         CpiContext::new(self.token_program.clone(), cpi_accounts)
