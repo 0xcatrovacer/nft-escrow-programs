@@ -1,16 +1,14 @@
 import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
-import { SystemProgram, Transaction } from "@solana/web3.js";
+import { PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import {
     createMint,
     createAccount,
     mintTo,
     getAccount,
     TOKEN_PROGRAM_ID,
-    NATIVE_MINT,
 } from "@solana/spl-token";
 import { EscrowContract } from "../target/types/escrow_contract";
-import NodeWallet from "@project-serum/anchor/dist/cjs/nodewallet";
 import { assert } from "chai";
 
 describe("escrow-contract", () => {
@@ -154,6 +152,74 @@ describe("escrow-contract", () => {
         assert.ok(_initializerNftAccount.amount.toString() == "1");
         assert.ok(
             _takerNftAccount.amount.toString() == receiveAmount.toString()
+        );
+    });
+
+    it("Can initialize escrow", async () => {
+        const [_vault_account_pda, _vault_account_bump] =
+            await PublicKey.findProgramAddress(
+                [
+                    initializerMainAccount.publicKey.toBuffer(),
+                    nftMint.toBuffer(),
+                ],
+                program.programId
+            );
+
+        vault_account_pda = _vault_account_pda;
+        vault_account_bump = _vault_account_bump;
+
+        const [_vault_authority_pda, _vault_authority_bump] =
+            await PublicKey.findProgramAddress(
+                [Buffer.from(anchor.utils.bytes.utf8.encode("escrow"))],
+                program.programId
+            );
+
+        vault_authority_pda = _vault_authority_pda;
+
+        await program.methods
+            .initializeEscrow(receiveAmount)
+            .accounts({
+                vaultAccount: vault_account_pda,
+                escrowAccount: escrowAccount.publicKey,
+                initializer: initializerMainAccount.publicKey,
+                initializerNftMint: nftMint,
+                initializerDepositTokenAccount: initializerNftAccount,
+                initializerReceiveMint: tokenMint,
+                initializerReceiveTokenAccount: initializerTokenAccount,
+                tokenProgram: TOKEN_PROGRAM_ID,
+                rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+                systemProgram: anchor.web3.SystemProgram.programId,
+            })
+            .preInstructions([
+                await program.account.escrowAccount.createInstruction(
+                    escrowAccount
+                ),
+            ])
+            .signers([escrowAccount, initializerMainAccount])
+            .rpc();
+
+        let _escrowAccount = await program.account.escrowAccount.fetch(
+            escrowAccount.publicKey
+        );
+
+        assert.ok(
+            _escrowAccount.initializerKey.equals(
+                initializerMainAccount.publicKey
+            )
+        );
+        assert.ok(
+            _escrowAccount.initializerReceiveAmount.toNumber() ==
+                receiveAmount.toNumber()
+        );
+        assert.ok(
+            _escrowAccount.initializerDepositTokenAccount.equals(
+                initializerNftAccount
+            )
+        );
+        assert.ok(
+            _escrowAccount.initializerReceiveTokenAccount.equals(
+                initializerTokenAccount
+            )
         );
     });
 });
