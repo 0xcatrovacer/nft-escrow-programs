@@ -266,4 +266,64 @@ describe("escrow-contract", () => {
                 receiveAmount.toString()
         );
     });
+
+    it("Can initialize escrow and cancel escrow", async () => {
+        await mintTo(
+            provider.connection,
+            payer,
+            nftMint,
+            initializerNftAccount,
+            mintAuthority,
+            1
+        );
+
+        await program.methods
+            .initializeEscrow(receiveAmount)
+            .accounts({
+                vaultAccount: vault_account_pda,
+                escrowAccount: escrowAccount.publicKey,
+                initializer: initializerMainAccount.publicKey,
+                initializerNftMint: nftMint,
+                initializerDepositTokenAccount: initializerNftAccount,
+                initializerReceiveMint: tokenMint,
+                initializerReceiveTokenAccount: initializerTokenAccount,
+                tokenProgram: TOKEN_PROGRAM_ID,
+                rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+                systemProgram: anchor.web3.SystemProgram.programId,
+            })
+            .preInstructions([
+                await program.account.escrowAccount.createInstruction(
+                    escrowAccount
+                ),
+            ])
+            .signers([escrowAccount, initializerMainAccount])
+            .rpc();
+
+        await program.methods
+            .cancel()
+            .accounts({
+                vaultAccount: vault_account_pda,
+                escrowAccount: escrowAccount.publicKey,
+                initializerDepositTokenAccount: initializerNftAccount,
+                vaultAuthority: vault_authority_pda,
+                initializer: initializerMainAccount.publicKey,
+                tokenProgram: TOKEN_PROGRAM_ID,
+            })
+            .signers([initializerMainAccount])
+            .rpc();
+
+        const _initializerNftAccount = await getAccount(
+            provider.connection,
+            initializerNftAccount
+        );
+
+        assert.ok(
+            _initializerNftAccount.owner.equals(
+                initializerMainAccount.publicKey
+            )
+        );
+        assert.ok(
+            _initializerNftAccount.amount.toString() == receiveAmount.toString()
+        );
+    });
 });
