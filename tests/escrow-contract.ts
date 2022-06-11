@@ -27,16 +27,22 @@ describe("escrow-contract", () => {
     let vault_account_pda = null;
     let vault_account_bump = null;
     let vault_authority_pda = null;
+    let feeTokenAccount = null;
 
     const escrowAccount = anchor.web3.Keypair.generate();
     const payer = anchor.web3.Keypair.generate();
     const mintAuthority = anchor.web3.Keypair.generate();
     const initializerMainAccount = anchor.web3.Keypair.generate();
     const takerMainAccount = anchor.web3.Keypair.generate();
+    const feeMainAccount = provider.wallet;
 
     const usdcDecimals = 1000000;
 
     const receiveAmount = new anchor.BN(100 * usdcDecimals);
+    const feePercentage = 3;
+    const feeAmount = new anchor.BN(
+        (receiveAmount.toNumber() * feePercentage) / 100
+    );
 
     it("Initializes program state", async () => {
         const transferTx = await provider.connection.requestAirdrop(
@@ -117,6 +123,15 @@ describe("escrow-contract", () => {
             payer,
             tokenMint,
             takerMainAccount.publicKey,
+            undefined,
+            undefined,
+            TOKEN_PROGRAM_ID
+        );
+        feeTokenAccount = await createAccount(
+            provider.connection,
+            payer,
+            tokenMint,
+            feeMainAccount.publicKey,
             undefined,
             undefined,
             TOKEN_PROGRAM_ID
@@ -223,82 +238,7 @@ describe("escrow-contract", () => {
         );
     });
 
-    it("Can exchange escrow state", async () => {
-        await program.methods
-            .exchange()
-            .accounts({
-                escrowAccount: escrowAccount.publicKey,
-                vaultAccount: vault_account_pda,
-                vaultAuthority: vault_authority_pda,
-                initializer: initializerMainAccount.publicKey,
-                taker: takerMainAccount.publicKey,
-                initializerDepositTokenAccount: initializerNftAccount,
-                initializerReceiveTokenAccount: initializerTokenAccount,
-                takerDepositTokenAccount: takerTokenAccount,
-                takerReceiveTokenAccount: takerNftAccount,
-            })
-            .signers([takerMainAccount])
-            .rpc();
-
-        let _initializerNftAccount = await getAccount(
-            provider.connection,
-            initializerNftAccount
-        );
-        let _initializerTokenAccount = await getAccount(
-            provider.connection,
-            initializerTokenAccount
-        );
-
-        let _takerNftAccount = await getAccount(
-            provider.connection,
-            takerNftAccount
-        );
-        let _takerTokenAccount = await getAccount(
-            provider.connection,
-            takerTokenAccount
-        );
-
-        assert.ok(_takerNftAccount.amount.toString() == "1");
-        assert.ok(_takerTokenAccount.amount.toString() == "0");
-        assert.ok(_initializerNftAccount.amount.toString() == "0");
-        assert.ok(
-            _initializerTokenAccount.amount.toString() ==
-                receiveAmount.toString()
-        );
-    });
-
-    it("Can initialize escrow and cancel escrow", async () => {
-        await mintTo(
-            provider.connection,
-            payer,
-            nftMint,
-            initializerNftAccount,
-            mintAuthority,
-            1
-        );
-
-        await program.methods
-            .initializeEscrow(receiveAmount)
-            .accounts({
-                vaultAccount: vault_account_pda,
-                escrowAccount: escrowAccount.publicKey,
-                initializer: initializerMainAccount.publicKey,
-                initializerNftMint: nftMint,
-                initializerDepositTokenAccount: initializerNftAccount,
-                initializerReceiveMint: tokenMint,
-                initializerReceiveTokenAccount: initializerTokenAccount,
-                tokenProgram: TOKEN_PROGRAM_ID,
-                rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-                systemProgram: anchor.web3.SystemProgram.programId,
-            })
-            .preInstructions([
-                await program.account.escrowAccount.createInstruction(
-                    escrowAccount
-                ),
-            ])
-            .signers([escrowAccount, initializerMainAccount])
-            .rpc();
-
+    it("Can cancel escrow state", async () => {
         await program.methods
             .cancel()
             .accounts({
@@ -322,8 +262,95 @@ describe("escrow-contract", () => {
                 initializerMainAccount.publicKey
             )
         );
-        assert.ok(
-            _initializerNftAccount.amount.toString() == receiveAmount.toString()
+        assert.ok(_initializerNftAccount.amount.toString() == "1");
+
+        let deletedEscrowAccount =
+            await program.account.escrowAccount.fetchNullable(
+                escrowAccount.publicKey
+            );
+
+        assert.ok(deletedEscrowAccount == null);
+    });
+
+    it("Can exchange escrow state", async () => {
+        await program.methods
+            .initializeEscrow(receiveAmount)
+            .accounts({
+                vaultAccount: vault_account_pda,
+                escrowAccount: escrowAccount.publicKey,
+                initializer: initializerMainAccount.publicKey,
+                initializerNftMint: nftMint,
+                initializerDepositTokenAccount: initializerNftAccount,
+                initializerReceiveMint: tokenMint,
+                initializerReceiveTokenAccount: initializerTokenAccount,
+                tokenProgram: TOKEN_PROGRAM_ID,
+                rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+                systemProgram: anchor.web3.SystemProgram.programId,
+            })
+            .preInstructions([
+                await program.account.escrowAccount.createInstruction(
+                    escrowAccount
+                ),
+            ])
+            .signers([escrowAccount, initializerMainAccount])
+            .rpc();
+
+        await program.methods
+            .exchange()
+            .accounts({
+                escrowAccount: escrowAccount.publicKey,
+                vaultAccount: vault_account_pda,
+                vaultAuthority: vault_authority_pda,
+                initializer: initializerMainAccount.publicKey,
+                taker: takerMainAccount.publicKey,
+                initializerDepositTokenAccount: initializerNftAccount,
+                initializerReceiveTokenAccount: initializerTokenAccount,
+                takerDepositTokenAccount: takerTokenAccount,
+                takerReceiveTokenAccount: takerNftAccount,
+                feeAccount: feeTokenAccount,
+                tokenProgram: TOKEN_PROGRAM_ID,
+            })
+            .signers([takerMainAccount])
+            .rpc();
+
+        let _initializerNftAccount = await getAccount(
+            provider.connection,
+            initializerNftAccount
         );
+        let _initializerTokenAccount = await getAccount(
+            provider.connection,
+            initializerTokenAccount
+        );
+
+        let _takerNftAccount = await getAccount(
+            provider.connection,
+            takerNftAccount
+        );
+        let _takerTokenAccount = await getAccount(
+            provider.connection,
+            takerTokenAccount
+        );
+        let _feeTokenAccount = await getAccount(
+            provider.connection,
+            feeTokenAccount
+        );
+
+        let feeLessReceiveAmount =
+            receiveAmount.toNumber() - feeAmount.toNumber();
+
+        assert.ok(_takerNftAccount.amount.toString() == "1");
+        assert.ok(_takerTokenAccount.amount.toString() == "0");
+        assert.ok(_initializerNftAccount.amount.toString() == "0");
+        assert.ok(_feeTokenAccount.amount.toString() == feeAmount.toString());
+        assert.ok(
+            _initializerTokenAccount.amount.toString() ==
+                feeLessReceiveAmount.toString()
+        );
+
+        let _escrowAccount = await program.account.escrowAccount.fetchNullable(
+            escrowAccount.publicKey
+        );
+
+        assert.ok(_escrowAccount == null);
     });
 });
