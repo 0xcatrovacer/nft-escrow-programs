@@ -4,8 +4,12 @@ use anchor_spl::token::{self, CloseAccount, Mint, SetAuthority, TokenAccount, Tr
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
+const XYPHER_FEE_ACCOUNT: &str = "BtrH3c2zVjYdFcVXkv4CCPvTMEFesWjs6yy4xxdtPF2u";
+
 #[program]
 pub mod escrow_contract {
+
+    use std::str::FromStr;
 
     use super::*;
 
@@ -65,6 +69,12 @@ pub mod escrow_contract {
     }
 
     pub fn exchange(ctx: Context<Exchange>) -> Result<()> {
+        let fee_account = &mut ctx.accounts.fee_account;
+
+        if fee_account.owner != Pubkey::from_str(XYPHER_FEE_ACCOUNT).unwrap() {
+            return Err(ErrorCode::FeeAccountMismatch.into());
+        }
+
         let (_vault_authority, _vault_authority_bump) =
             Pubkey::find_program_address(&[&ESCROW_PDA_SEEDS], ctx.program_id);
 
@@ -77,11 +87,23 @@ pub mod escrow_contract {
             1,
         )?;
 
+        let receive_amount: u64 = ctx.accounts.escrow_account.initializer_receive_amount;
+
+        let fee_amount: u64 = receive_amount * 3 / 100;
+        let fee_less_receive_amount: u64 = receive_amount - fee_amount;
+
         token::transfer(
             ctx.accounts
                 .transfer_to_initializer_context()
                 .with_signer(&[&authority_seeds[..]]),
-            ctx.accounts.escrow_account.initializer_receive_amount,
+            fee_less_receive_amount,
+        )?;
+
+        token::transfer(
+            ctx.accounts
+                .transfer_fee_context()
+                .with_signer(&[&authority_seeds[..]]),
+            fee_amount,
         )?;
 
         token::close_account(
@@ -274,6 +296,9 @@ pub struct Exchange<'info> {
     )]
     pub taker_receive_token_account: Box<Account<'info, TokenAccount>>,
 
+    #[account(mut)]
+    pub fee_account: Box<Account<'info, TokenAccount>>,
+
     /// CHECK: This is not dangerous
     pub token_program: AccountInfo<'info>,
 }
@@ -311,6 +336,16 @@ impl<'info> Exchange<'info> {
 
         CpiContext::new(self.token_program.clone(), cpi_accounts)
     }
+
+    fn transfer_fee_context(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+        let cpi_accounts = Transfer {
+            from: self.taker_deposit_token_account.to_account_info().clone(),
+            to: self.fee_account.to_account_info().clone(),
+            authority: self.taker.clone(),
+        };
+
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
 }
 
 #[account]
@@ -321,4 +356,10 @@ pub struct EscrowAccount {
     pub initializer_receive_mint: Pubkey,
     pub initializer_receive_amount: u64,
     pub initializer_receive_token_account: Pubkey,
+}
+
+#[error_code]
+pub enum ErrorCode {
+    #[msg("Expected fee account does not match")]
+    FeeAccountMismatch,
 }
