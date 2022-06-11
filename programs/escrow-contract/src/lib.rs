@@ -4,7 +4,7 @@ use anchor_spl::token::{self, CloseAccount, Mint, SetAuthority, TokenAccount, Tr
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
-const XYPHER_FEE_ACCOUNT: &str = "BtrH3c2zVjYdFcVXkv4CCPvTMEFesWjs6yy4xxdtPF2u";
+const XYPHER_FEE_ACCOUNT: &str = "8DXSNpVJ5xHX7B49kCQVxMgQ2xPALEaZxN1H1sLFEebX";
 
 #[program]
 pub mod escrow_contract {
@@ -255,6 +255,7 @@ pub struct Exchange<'info> {
         constraint = escrow_account.initializer_deposit_token_account == *initializer_deposit_token_account.to_account_info().key,
         constraint = escrow_account.initializer_receive_token_account == *initializer_receive_token_account.to_account_info().key,
         constraint = escrow_account.initializer_key == *initializer.key,
+        close = initializer
     )]
     pub escrow_account: Box<Account<'info, EscrowAccount>>,
 
