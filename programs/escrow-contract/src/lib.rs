@@ -2,9 +2,9 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::spl_token::instruction::AuthorityType;
 use anchor_spl::token::{self, CloseAccount, Mint, SetAuthority, TokenAccount, Transfer};
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("GqXh9DoWpEyuh1k3FrRzJJUZFJsjyKbYqNktcvrtACCo");
 
-const XYPHER_FEE_ACCOUNT: &str = "8DXSNpVJ5xHX7B49kCQVxMgQ2xPALEaZxN1H1sLFEebX";
+const XYPHER_FEE_ACCOUNT: &str = "HePXu2ch5nXC82t7sgMCuQVi6QDhjU7q4TR48zhgXvcR";
 
 #[program]
 pub mod escrow_contract {

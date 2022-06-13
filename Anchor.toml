@@ -1,13 +1,17 @@
 [features]
 seeds = false
+
 [programs.localnet]
-escrow_contract = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+escrow_contract = "HePXu2ch5nXC82t7sgMCuQVi6QDhjU7q4TR48zhgXvcR"
+
+[programs.devnet]
+escrow_contract = "HePXu2ch5nXC82t7sgMCuQVi6QDhjU7q4TR48zhgXvcR"
 
 [registry]
 url = "https://anchor.projectserum.com"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "/home/swarnab/.config/solana/id.json"
 
 [scripts]
