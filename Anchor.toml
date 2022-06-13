@@ -2,10 +2,10 @@
 seeds = false
 
 [programs.localnet]
-escrow_contract = "Dw9sRvAweUmzqoBxzNFBSGcQsWAZB4xyuWXWxMXnqqMJ"
+escrow_contract = "HfEpeUGWmC1BZQaW5vhYHzg2BoiSoJh59vtxpgx7r1ik"
 
 [programs.devnet]
-escrow_contract = "Dw9sRvAweUmzqoBxzNFBSGcQsWAZB4xyuWXWxMXnqqMJ"
+escrow_contract = "HfEpeUGWmC1BZQaW5vhYHzg2BoiSoJh59vtxpgx7r1ik"
 
 [registry]
 url = "https://anchor.projectserum.com"
