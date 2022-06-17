@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::spl_token::instruction::AuthorityType;
 use anchor_spl::token::{self, CloseAccount, Mint, SetAuthority, TokenAccount, Transfer};
 
-declare_id!("HfEpeUGWmC1BZQaW5vhYHzg2BoiSoJh59vtxpgx7r1ik");
+declare_id!("XYP84JFCrTUhWJa3oo7AmiLoXG1fh3XqxpFhAvwPRhy");
 
 const XYPHER_FEE_ACCOUNT: &str = "HePXu2ch5nXC82t7sgMCuQVi6QDhjU7q4TR48zhgXvcR";
 
